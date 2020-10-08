@@ -112,6 +112,7 @@ wc -l $UNMAPPED
 bwa mem -a ${DB}/viral.vipr/NONFLU_All.fastq $UNMAPPED | samtools view -S -b -F 4 - | samtools sort - > ${SAMPLE}.virus.bam
 bwa mem -a ${DB}/fungi/${FREF} $UNMAPPED | samtools view -S -b -F 4 - |  samtools sort - > ${SAMPLE}.fungi.bam
 bwa mem -a ${DB}/protozoa/protozoa.ncbi.february.3.2018.fasta $UNMAPPED | samtools view -S -b -F 4 - | samtools sort - > ${SAMPLE}.protozoa.bam
+bwa mem -a ${DB}/staph_aureus/staph_aureus.ncbi.fasta $UNMAPPED | samtools view -S -b -F 4 - | samtools sort - > ${SAMPLE}.staph_aureus.bam
 
 #$minimap2 -ax sr --split-prefix ${OUTDIR}/tempMM2.viral ${DB}/viral.vipr/NONFLU_All.fastq $UNMAPPED | samtools view -S -b -F 4 - | samtools sort - > ${SAMPLE}.virus.bam
 #$minimap2 -ax sr --split-prefix ${OUTDIR}/tempMM2.fungi ${DB}/fungi/${FREF} $UNMAPPED | samtools view -S -b -F 4 - |  samtools sort - > ${SAMPLE}.fungi.bam
@@ -120,9 +121,11 @@ bwa mem -a ${DB}/protozoa/protozoa.ncbi.february.3.2018.fasta $UNMAPPED | samtoo
 samtools index ${SAMPLE}.virus.bam
 samtools index ${SAMPLE}.fungi.bam
 samtools index ${SAMPLE}.protozoa.bam
+samtools index ${SAMPLE}.staph_aureus.bam
 samtools fastq ${SAMPLE}.virus.bam >${SAMPLE}.virus.fastq
 samtools fastq ${SAMPLE}.fungi.bam >${SAMPLE}.fungi.fastq
 samtools fastq ${SAMPLE}.protozoa.bam >${SAMPLE}.protozoa.fastq
+samtools fastq ${SAMPLE}.staph_aureus.bam >${SAMPLE}.staph_aureus.fastq
 
 rm -fr ${SAMPLE}*bam
 rm -fr ${SAMPLE}*bai
@@ -130,16 +133,18 @@ rm -fr ${SAMPLE}*bai
 megahit --k-step 10 -r ${SAMPLE}.virus.fastq -o ${SAMPLE}.virus.megahit --out-prefix virus.megahit
 megahit --k-step 10 -r ${SAMPLE}.fungi.fastq -o ${SAMPLE}.fungi.megahit --out-prefix fungi.megahit
 megahit --k-step 10 -r ${SAMPLE}.protozoa.fastq -o ${SAMPLE}.protozoa.megahit --out-prefix protozoa.megahit
+megahit --k-step 10 -r ${SAMPLE}.staph_aureus.fastq -o ${SAMPLE}.staph_aureus.megahit --out-prefix staph_aureus.megahit
 mv ${SAMPLE}.virus.megahit/virus.megahit.contigs.fa ${SAMPLE}.virus.megahit.contigs.fa
 mv ${SAMPLE}.fungi.megahit/fungi.megahit.contigs.fa ${SAMPLE}.fungi.megahit.contigs.fa
 mv ${SAMPLE}.protozoa.megahit/protozoa.megahit.contigs.fa ${SAMPLE}.protozoa.megahit.contigs.fa
+mv ${SAMPLE}.staph_aureus.megahit/staph_aureus.megahit.contigs.fa ${SAMPLE}.staph_aureus.megahit.contigs.fa
 
 
 "-------->Number of assembled contigs"
 wc -l ${SAMPLE}.virus.megahit.contigs.fa
 wc -l ${SAMPLE}.fungi.megahit.contigs.fa
 wc -l ${SAMPLE}.protozoa.megahit.contigs.fa
-
+wc -l ${SAMPLE}.staph_aureus.megahit.contigs.fa
 
 
 # map reads onto contigs
@@ -177,13 +182,24 @@ samtools depth ${SAMPLE}.megahit.contigs.protozoa.bam>${SAMPLE}.megahit.contigs.
 samtools view -H ${SAMPLE}.megahit.contigs.protozoa.bam >${OUTDIR}/header.sam
 samtools view -F 4  ${SAMPLE}.megahit.contigs.protozoa.bam | grep -v -e 'XA:Z:' -e 'SA:Z:'| cat ${OUTDIR}/header.sam - | samtools view -b - | samtools depth - >${SAMPLE}.megahit.contigs.protozoa.uniq.cov
 
+#staph_aureus----
+bwa index ${SAMPLE}.staph_aureus.megahit.contigs.fa
+bwa mem ${SAMPLE}.staph_aureus.megahit.contigs.fa ${SAMPLE}.staph_aureus.fastq | samtools view -S -b -F 4 - | samtools sort - >${SAMPLE}.megahit.contigs.staph_aureus.bam
+#$minimap2 -ax sr ${SAMPLE}.protozoa.megahit.contigs.fa ${SAMPLE}.protozoa.fastq | samtools view -S -b -F 4 - | samtools sort - >${SAMPLE}.megahit.contigs.protozoa.bam
+
+
+samtools depth ${SAMPLE}.megahit.contigs.staph_aureus.bam>${SAMPLE}.megahit.contigs.staph_aureus.cov
+samtools view -H ${SAMPLE}.megahit.contigs.staph_aureus.bam >${OUTDIR}/header.sam
+samtools view -F 4  ${SAMPLE}.megahit.contigs.staph_aureus.bam | grep -v -e 'XA:Z:' -e 'SA:Z:'| cat ${OUTDIR}/header.sam - | samtools view -b - | samtools depth - >${SAMPLE}.megahit.contigs.staph_aureus.uniq.cov
+
+
 echo "-----------------------------------------------------"
 echo "Map assembled contigs onto the microbial references"
 
 bwa mem -a ${DB}/viral.vipr/NONFLU_All.fastq ${SAMPLE}.virus.megahit.contigs.fa | samtools view -bS -F 4 - | samtools sort -  >${SAMPLE}.virus.megahit.contigs.SV.bam
 bwa mem -a ${DB}/fungi/${FREF} ${SAMPLE}.fungi.megahit.contigs.fa  | samtools view -bS -F 4 - | samtools sort -   >${SAMPLE}.fungi.megahit.contigs.SV.bam
 bwa mem -a ${DB}/protozoa/protozoa.ncbi.february.3.2018.fasta ${SAMPLE}.protozoa.megahit.contigs.fa  | samtools view -bS -F 4 - | samtools sort - >${SAMPLE}.protozoa.megahit.contigs.SV.bam
-
+bwa mem -a ${DB}/staph_aureus/staph_aureus.ncbi.fasta ${SAMPLE}.staph_aureus.megahit.contigs.fa  | samtools view -bS -F 4 - | samtools sort - >${SAMPLE}.staph_aureus.megahit.contigs.SV.bam
 #$minimap2 -ax asm20 --split-prefix ${OUTDIR}/tempMM2.viral ${DB}/viral.vipr/NONFLU_All.fastq ${SAMPLE}.virus.megahit.contigs.fa | samtools view -bS -F 4 - | samtools sort -  >${SAMPLE}.virus.megahit.contigs.SV.bam
 #$minimap2 -ax asm20 --split-prefix ${OUTDIR}/tempMM2.fungi ${DB}/fungi/${FREF} ${SAMPLE}.fungi.megahit.contigs.fa  | samtools view -bS -F 4 - | samtools sort -   >${SAMPLE}.fungi.megahit.contigs.SV.bam
 #$minimap2 -ax asm20 --split-prefix ${OUTDIR}/tempMM2.protozoa ${DB}/protozoa/protozoa.ncbi.february.3.2018.fasta ${SAMPLE}.protozoa.megahit.contigs.fa  | samtools view -bS -F 4 - | samtools sort - >${SAMPLE}.protozoa.megahit.contigs.SV.bam
@@ -192,12 +208,14 @@ bwa mem -a ${DB}/protozoa/protozoa.ncbi.february.3.2018.fasta ${SAMPLE}.protozoa
 samtools index ${SAMPLE}.virus.megahit.contigs.SV.bam
 samtools index ${SAMPLE}.fungi.megahit.contigs.SV.bam
 samtools index ${SAMPLE}.protozoa.megahit.contigs.SV.bam
+samtools index ${SAMPLE}.staph_aureus.megahit.contigs.SV.bam
 
 
 #virus, fungi or protozoa
 python ${DIR_CODE}/process.BWA.py -o virus ${SAMPLE}.virus.megahit.contigs.SV.bam ${SAMPLE}.virus.megahit.contigs.SV.csv
 python ${DIR_CODE}/process.BWA.py -o fungi ${SAMPLE}.fungi.megahit.contigs.SV.bam ${SAMPLE}.fungi.megahit.contigs.SV.csv
 python ${DIR_CODE}/process.BWA.py -o protozoa ${SAMPLE}.protozoa.megahit.contigs.SV.bam ${SAMPLE}.protozoa.megahit.contigs.SV.csv
+python ${DIR_CODE}/process.BWA.py -o staph_aureus ${SAMPLE}.staph_aureus.megahit.contigs.SV.bam ${SAMPLE}.staph_aureus.megahit.contigs.SV.csv
 
 echo "-----------------------------------------------------"
 echo "Map assembled contigs onto the entire TREE of life to verify specificity of assembled contigs"
@@ -205,26 +223,29 @@ echo "Map assembled contigs onto the entire TREE of life to verify specificity o
 blastn -query ${SAMPLE}.virus.megahit.contigs.fa -db nt -task megablast -dust no -outfmt "7 qseqid sseqid pident qlen length mismatch" -max_target_seqs 10 -out ${SAMPLE}.virus.megahit.contigs.BLAST.csv -remote
 blastn -query ${SAMPLE}.virus.megahit.contigs.fa -db nt -task megablast -dust no -max_target_seqs 10 -out ${SAMPLE}.virus.megahit.contigs.BLAST.long.csv -remote
 python ${DIR_CODE}/process.blast.py ${SAMPLE}.virus.megahit.contigs.BLAST.csv ${SAMPLE}.virus.megahit.contigs.BLAST.long.csv ${SAMPLE}.virus.megahit.contigs.BLAST.house.format.csv
-
 python ${DIR_CODE}/tree.of.life.filter.py ${SAMPLE}.virus.megahit.contigs.BLAST.house.format.csv ${SAMPLE}.virus.megahit.contigs.SV.csv ${SAMPLE}.virus.megahit.contigs.SV.filtered.csv
-
-blastn -query ${SAMPLE}.protozoa.megahit.contigs.fa -db nt -task megablast -dust no -outfmt "7 qseqid sseqid pident qlen length mismatch" -max_target_seqs 10 -out ${SAMPLE}.protozoa.megahit.contigs.BLAST.csv -remote
-blastn -query ${SAMPLE}.protozoa.megahit.contigs.fa -db nt -task megablast -dust no -max_target_seqs 10 -out ${SAMPLE}.protozoa.megahit.contigs.BLAST.long.csv -remote
-python ${DIR_CODE}/process.blast.py ${SAMPLE}.protozoa.megahit.contigs.BLAST.csv ${SAMPLE}.protozoa.megahit.contigs.BLAST.long.csv ${SAMPLE}.protozoa.megahit.contigs.BLAST.house.format.csv
-python ${DIR_CODE}/tree.of.life.filter.py ${SAMPLE}.protozoa.megahit.contigs.BLAST.house.format.csv ${SAMPLE}.protozoa.megahit.contigs.SV.csv ${SAMPLE}.protozoa.megahit.contigs.SV.filtered.csv
-
-
 
 blastn -query ${SAMPLE}.fungi.megahit.contigs.fa -db nt -task megablast -dust no -outfmt "7 qseqid sseqid pident qlen length mismatch" -max_target_seqs 10 -out ${SAMPLE}.fungi.megahit.contigs.BLAST.csv -remote
 blastn -query ${SAMPLE}.fungi.megahit.contigs.fa -db nt -task megablast -dust no -max_target_seqs 10 -out ${SAMPLE}.fungi.megahit.contigs.BLAST.long.csv -remote
 python ${DIR_CODE}/process.blast.py ${SAMPLE}.fungi.megahit.contigs.BLAST.csv ${SAMPLE}.fungi.megahit.contigs.BLAST.long.csv ${SAMPLE}.fungi.megahit.contigs.BLAST.house.format.csv
 python ${DIR_CODE}/tree.of.life.filter.py ${SAMPLE}.fungi.megahit.contigs.BLAST.house.format.csv ${SAMPLE}.fungi.megahit.contigs.SV.csv ${SAMPLE}.fungi.megahit.contigs.SV.filtered.csv
 
+blastn -query ${SAMPLE}.protozoa.megahit.contigs.fa -db nt -task megablast -dust no -outfmt "7 qseqid sseqid pident qlen length mismatch" -max_target_seqs 10 -out ${SAMPLE}.protozoa.megahit.contigs.BLAST.csv -remote
+blastn -query ${SAMPLE}.protozoa.megahit.contigs.fa -db nt -task megablast -dust no -max_target_seqs 10 -out ${SAMPLE}.protozoa.megahit.contigs.BLAST.long.csv -remote
+python ${DIR_CODE}/process.blast.py ${SAMPLE}.protozoa.megahit.contigs.BLAST.csv ${SAMPLE}.protozoa.megahit.contigs.BLAST.long.csv ${SAMPLE}.protozoa.megahit.contigs.BLAST.house.format.csv
+python ${DIR_CODE}/tree.of.life.filter.py ${SAMPLE}.protozoa.megahit.contigs.BLAST.house.format.csv ${SAMPLE}.protozoa.megahit.contigs.SV.csv ${SAMPLE}.protozoa.megahit.contigs.SV.filtered.csv
+
+blastn -query ${SAMPLE}.staph_aureus.megahit.contigs.fa -db nt -task megablast -dust no -outfmt "7 qseqid sseqid pident qlen length mismatch" -max_target_seqs 10 -out ${SAMPLE}.staph_aureus.megahit.contigs.BLAST.csv -remote
+blastn -query ${SAMPLE}.staph_aureus.megahit.contigs.fa -db nt -task megablast -dust no -max_target_seqs 10 -out ${SAMPLE}.staph_aureus.megahit.contigs.BLAST.long.csv -remote
+python ${DIR_CODE}/process.blast.py ${SAMPLE}.staph_aureus.megahit.contigs.BLAST.csv ${SAMPLE}.staph_aureus.megahit.contigs.BLAST.long.csv ${SAMPLE}.staph_aureus.megahit.contigs.BLAST.house.format.csv
+python ${DIR_CODE}/tree.of.life.filter.py ${SAMPLE}.staph_aureus.megahit.contigs.BLAST.house.format.csv ${SAMPLE}.staph_aureus.megahit.contigs.SV.csv ${SAMPLE}.staph_aureus.megahit.contigs.SV.filtered.csv
+
 
 echo "Contigs after filtering are here"
 wc -l ${SAMPLE}.virus.megahit.contigs.SV.filtered.csv
 wc -l ${SAMPLE}.fungi.megahit.contigs.SV.filtered.csv
 wc -l ${SAMPLE}.protozoa.megahit.contigs.SV.filtered.csv
+wc -l ${SAMPLE}.staph_aureus.megahit.contigs.SV.filtered.csv
 
 
 echo "Success!!!"
